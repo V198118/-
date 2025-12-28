@@ -21,7 +21,7 @@
             user-select: none;
         }
         
-        /* Фиксированный размер для LED-экрана */
+        /* Новый размер для LED-экрана */
         html, body {
             width: 4320px;
             height: 908px;
@@ -48,17 +48,6 @@
             z-index: 1;
         }
         
-        /* Затемнение для лучшей читаемости */
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0);
-            z-index: 0;
-        }
-        
         /* Контейнер таймера */
         #countdown-container {
             position: absolute;
@@ -67,13 +56,25 @@
             top: 60%;
             transform: translate(-50%, -50%);
             text-align: center;
-            min-width: 1500px;
+            min-width: 1200px;
+        }
+        
+        /* Контейнер для поздравления */
+        #congratulations-container {
+            position: absolute;
+            z-index: 3;
+            left: 60%;
+            top: 60%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            min-width: 1400px;
+            display: none;
         }
         
         /* Сетка таймера */
         #countdown {
             display: flex;
-            gap: 40px;
+            gap: 30px;
             justify-content: center;
             align-items: center;
         }
@@ -83,18 +84,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 300px;
+            min-width: 220px;
         }
         
-        /* Цифры - Inter Extra Bold */
+        /* Цифры - Inter Extra Bold красный цвет */
         .time-value {
-            font-size: 60px;
+            font-size: 180px;
             font-weight: 800;
             line-height: 1;
             color: #b40f00;
             text-shadow: 
-                3px 3px 10px rgba(180, 15, 0, 0),
-                0 0 20px rgba(180, 15, 0, 0);
+                4px 4px 12px rgba(0, 0, 0, 0.9),
+                0 0 30px rgba(180, 15, 0, 0.5);
             letter-spacing: 2px;
             font-family: 'Inter', 'Arial', sans-serif;
             font-variant-numeric: tabular-nums;
@@ -102,26 +103,51 @@
         
         /* Подписи */
         .time-label {
-            font-size: 16px;
+            font-size: 45px;
             font-weight: 700;
-            color: ##b40f00;
-            margin-top: 15px;
+            color: #b40f00;
+            margin-top: 12px;
             text-transform: uppercase;
             letter-spacing: 3px;
-            text-shadow: 2px 2px 5px rgba(180, 15, 0, 0);
-            opacity: 0.9;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+            opacity: 0.95;
             font-family: 'Inter', 'Arial', sans-serif;
         }
         
         /* Разделители */
         .separator {
-            font-size: 42px;
+            font-size: 130px;
             font-weight: 800;
-            color: ##b40f00;
-            margin: 0 10px;
+            color: #b40f00;
+            margin: 0 8px;
             line-height: 1;
-            text-shadow: 2px 2px 8px rgba(180, 15, 0, 0);
+            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.9);
             font-family: 'Inter', 'Arial', sans-serif;
+        }
+        
+        /* Стили для поздравления */
+        .congratulations-text {
+            font-size: 120px;
+            font-weight: 800;
+            line-height: 1.3;
+            color: #b40f00;
+            text-shadow: 
+                4px 4px 15px rgba(0, 0, 0, 0.9),
+                0 0 40px rgba(180, 15, 0, 0.6);
+            letter-spacing: 2px;
+            font-family: 'Inter', 'Arial', sans-serif;
+            text-align: center;
+        }
+        
+        .year-text {
+            font-size: 180px;
+            font-weight: 900;
+            color: #b40f00;
+            text-shadow: 
+                5px 5px 20px rgba(0, 0, 0, 1),
+                0 0 50px rgba(180, 15, 0, 0.7);
+            margin-top: 30px;
+            letter-spacing: 5px;
         }
         
         /* Фолбэк если видео не загрузилось */
@@ -132,11 +158,11 @@
             width: 100%;
             height: 100%;
             z-index: 0;
-            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a4a 100%);
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
         }
         
         /* Оптимизация рендеринга */
-        .time-value, .separator {
+        .time-value, .separator, .congratulations-text, .year-text {
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -152,9 +178,6 @@
 <body>
     <!-- Видеофон -->
     <video id="video-background" autoplay muted loop playsinline></video>
-    
-    <!-- Затемнение -->
-    <div id="overlay"></div>
     
     <!-- Фолбэк фон -->
     <div id="video-fallback" style="display: none;"></div>
@@ -178,24 +201,50 @@
             </div>
         </div>
     </div>
+    
+    <!-- Поздравление -->
+    <div id="congratulations-container">
+        <div class="congratulations-text">
+            Снова далеко!
+        </div>
+        <div class="congratulations-text" style="margin-top: 40px;">
+            С Наступившим
+        </div>
+        <div class="year-text">
+            2026
+        </div>
+    </div>
 
     <script>
-        // Конфигурация по умолчанию для LED-экрана
+        // Конфигурация по умолчанию
         const defaultConfig = {
-            position: { left: "50%", top: "50%" },
-            fontSize: 200,
-            color: "#FFFFFF",
-            labelColor: "#FFFFFF",
-            overlayOpacity: 0.3,
+            position: { left: "60%", top: "60%" },
+            fontSize: 180,
+            color: "#b40f00",
+            labelColor: "#b40f00",
             videoUrl: "background.mp4"
         };
         
         let timerConfig = { ...defaultConfig };
         let videoRetryCount = 0;
         const MAX_VIDEO_RETRIES = 3;
+        const NEW_YEAR_2026 = new Date(2026, 0, 1, 0, 0, 0, 0); // 1 января 2026
+        
+        // Проверяем, наступил ли Новый 2026 год
+        function isNewYearPassed() {
+            const now = new Date();
+            return now >= NEW_YEAR_2026;
+        }
         
         // Основная функция таймера
         function updateCountdown() {
+            if (isNewYearPassed()) {
+                // Показываем поздравление
+                document.getElementById('countdown-container').style.display = 'none';
+                document.getElementById('congratulations-container').style.display = 'block';
+                return;
+            }
+            
             const now = new Date();
             const currentYear = now.getFullYear();
             
@@ -242,20 +291,26 @@
         // Применение настроек
         function applyConfig() {
             const container = document.getElementById('countdown-container');
-            const overlay = document.getElementById('overlay');
+            const congratsContainer = document.getElementById('congratulations-container');
             const timeValues = document.querySelectorAll('.time-value');
             const timeLabels = document.querySelectorAll('.time-label');
             const separators = document.querySelectorAll('.separator');
+            const congratsTexts = document.querySelectorAll('.congratulations-text');
+            const yearText = document.querySelector('.year-text');
             
+            // Применяем позицию (60%, 60%)
             if (container && timerConfig.position) {
-                container.style.left = timerConfig.position.left;
-                container.style.top = timerConfig.position.top;
+                container.style.left = timerConfig.position.left || "60%";
+                container.style.top = timerConfig.position.top || "60%";
             }
             
-            // Применяем размер шрифта
+            if (congratsContainer) {
+                congratsContainer.style.left = timerConfig.position.left || "60%";
+                congratsContainer.style.top = timerConfig.position.top || "60%";
+            }
+            
+            // Применяем размер шрифта для таймера
             if (timerConfig.fontSize) {
-                document.documentElement.style.setProperty('--font-size', timerConfig.fontSize + 'px');
-                
                 timeValues.forEach(el => {
                     el.style.fontSize = timerConfig.fontSize + 'px';
                 });
@@ -265,8 +320,19 @@
                 });
                 
                 separators.forEach(el => {
-                    el.style.fontSize = (timerConfig.fontSize * 0.7) + 'px';
+                    el.style.fontSize = (timerConfig.fontSize * 0.72) + 'px';
                 });
+            }
+            
+            // Применяем размер для поздравления (пропорционально)
+            if (timerConfig.fontSize) {
+                congratsTexts.forEach(el => {
+                    el.style.fontSize = (timerConfig.fontSize * 0.67) + 'px';
+                });
+                
+                if (yearText) {
+                    yearText.style.fontSize = (timerConfig.fontSize) + 'px';
+                }
             }
             
             // Применяем цвета
@@ -278,17 +344,20 @@
                 separators.forEach(el => {
                     el.style.color = timerConfig.color;
                 });
+                
+                congratsTexts.forEach(el => {
+                    el.style.color = timerConfig.color;
+                });
+                
+                if (yearText) {
+                    yearText.style.color = timerConfig.color;
+                }
             }
             
             if (timerConfig.labelColor) {
                 timeLabels.forEach(el => {
                     el.style.color = timerConfig.labelColor;
                 });
-            }
-            
-            // Затемнение фона
-            if (overlay && timerConfig.overlayOpacity !== undefined) {
-                overlay.style.backgroundColor = `rgba(0, 0, 0, ${timerConfig.overlayOpacity})`;
             }
         }
         
@@ -366,7 +435,18 @@
         
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Инициализация LED-таймера');
+            console.log('Инициализация LED-таймера 4320x908');
+            
+            // Проверяем, наступил ли уже 2026 год
+            if (isNewYearPassed()) {
+                console.log('Новый 2026 год уже наступил! Показываю поздравление.');
+                document.getElementById('countdown-container').style.display = 'none';
+                document.getElementById('congratulations-container').style.display = 'block';
+            } else {
+                console.log('Таймер до Нового 2026 года активен.');
+                document.getElementById('countdown-container').style.display = 'block';
+                document.getElementById('congratulations-container').style.display = 'none';
+            }
             
             // Загружаем настройки
             loadConfig();
@@ -374,7 +454,7 @@
             // Загружаем видео
             loadVideoBackground();
             
-            // Запускаем таймер
+            // Запускаем таймер или показываем поздравление
             updateCountdown();
             setInterval(updateCountdown, 1000);
             
