@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таймер до Нового Года</title>
+    
+    <!-- Шрифт Inter Extra Bold -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Сбрасываем все отступы и скрываем скроллбар */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+        
+        /* Фиксированный размер для LED-экрана */
+        html, body {
+            width: 4320px;
+            height: 908px;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #000000;
+        }
+        
+        body {
+            position: relative;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Видеофон - полный экран */
+        #video-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        /* Затемнение для лучшей читаемости */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 2;
+        }
+        
+        /* Контейнер таймера */
+        #countdown-container {
+            position: absolute;
+            z-index: 3;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            min-width: 1500px;
+        }
+        
+        /* Сетка таймера */
+        #countdown {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Блок времени */
+        .time-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+        
+        /* Цифры - Inter Extra Bold */
+        .time-value {
+            font-size: 200px;
+            font-weight: 800;
+            line-height: 1;
+            color: #FFFFFF;
+            text-shadow: 
+                3px 3px 10px rgba(0, 0, 0, 0.8),
+                0 0 20px rgba(255, 255, 255, 0.3);
+            letter-spacing: 2px;
+            font-family: 'Inter', 'Arial', sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Подписи */
+        .time-label {
+            font-size: 50px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-top: 15px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+            opacity: 0.9;
+            font-family: 'Inter', 'Arial', sans-serif;
+        }
+        
+        /* Разделители */
+        .separator {
+            font-size: 140px;
+            font-weight: 800;
+            color: #FFFFFF;
+            margin: 0 10px;
+            line-height: 1;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+            font-family: 'Inter', 'Arial', sans-serif;
+        }
+        
+        /* Фолбэк если видео не загрузилось */
+        #video-fallback {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a4a 100%);
+        }
+        
+        /* Оптимизация рендеринга */
+        .time-value, .separator {
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+        }
+        
+        /* Скрываем курсор на всем экране */
+        * {
+            cursor: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Видеофон -->
+    <video id="video-background" autoplay muted loop playsinline></video>
+    
+    <!-- Затемнение -->
+    <div id="overlay"></div>
+    
+    <!-- Фолбэк фон -->
+    <div id="video-fallback" style="display: none;"></div>
+    
+    <!-- Таймер -->
+    <div id="countdown-container">
+        <div id="countdown">
+            <div class="time-unit">
+                <div id="hours" class="time-value">000</div>
+                <div class="time-label">часов</div>
+            </div>
+            <div class="separator">:</div>
+            <div class="time-unit">
+                <div id="minutes" class="time-value">00</div>
+                <div class="time-label">минут</div>
+            </div>
+            <div class="separator">:</div>
+            <div class="time-unit">
+                <div id="seconds" class="time-value">00</div>
+                <div class="time-label">секунд</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация по умолчанию для LED-экрана
+        const defaultConfig = {
+            position: { left: "50%", top: "50%" },
+            fontSize: 200,
+            color: "#FFFFFF",
+            labelColor: "#FFFFFF",
+            overlayOpacity: 0.3,
+            videoUrl: "background.mp4"
+        };
+        
+        let timerConfig = { ...defaultConfig };
+        let videoRetryCount = 0;
+        const MAX_VIDEO_RETRIES = 3;
+        
+        // Основная функция таймера
+        function updateCountdown() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            
+            // Дата следующего Нового года
+            let newYearDate = new Date(currentYear + 1, 0, 1, 0, 0, 0, 0);
+            let diff = newYearDate - now;
+            
+            // Если Новый год уже прошел, берем следующий год
+            if (diff < 0) {
+                newYearDate = new Date(currentYear + 2, 0, 1, 0, 0, 0, 0);
+                diff = newYearDate - now;
+            }
+            
+            // Вычисляем время
+            const totalSeconds = Math.floor(diff / 1000);
+            const totalHours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            
+            // Обновляем отображение
+            const hoursElement = document.getElementById('hours');
+            const minutesElement = document.getElementById('minutes');
+            const secondsElement = document.getElementById('seconds');
+            
+            if (hoursElement) hoursElement.textContent = totalHours.toString().padStart(3, '0').slice(-3);
+            if (minutesElement) minutesElement.textContent = minutes.toString().padStart(2, '0');
+            if (secondsElement) secondsElement.textContent = seconds.toString().padStart(2, '0');
+        }
+        
+        // Загрузка настроек из localStorage
+        function loadConfig() {
+            try {
+                const savedConfig = localStorage.getItem('timerConfig');
+                if (savedConfig) {
+                    const parsedConfig = JSON.parse(savedConfig);
+                    timerConfig = { ...defaultConfig, ...parsedConfig };
+                    applyConfig();
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки конфигурации:', error);
+            }
+        }
+        
+        // Применение настроек
+        function applyConfig() {
+            const container = document.getElementById('countdown-container');
+            const overlay = document.getElementById('overlay');
+            const timeValues = document.querySelectorAll('.time-value');
+            const timeLabels = document.querySelectorAll('.time-label');
+            const separators = document.querySelectorAll('.separator');
+            
+            if (container && timerConfig.position) {
+                container.style.left = timerConfig.position.left;
+                container.style.top = timerConfig.position.top;
+            }
+            
+            // Применяем размер шрифта
+            if (timerConfig.fontSize) {
+                document.documentElement.style.setProperty('--font-size', timerConfig.fontSize + 'px');
+                
+                timeValues.forEach(el => {
+                    el.style.fontSize = timerConfig.fontSize + 'px';
+                });
+                
+                timeLabels.forEach(el => {
+                    el.style.fontSize = (timerConfig.fontSize * 0.25) + 'px';
+                });
+                
+                separators.forEach(el => {
+                    el.style.fontSize = (timerConfig.fontSize * 0.7) + 'px';
+                });
+            }
+            
+            // Применяем цвета
+            if (timerConfig.color) {
+                timeValues.forEach(el => {
+                    el.style.color = timerConfig.color;
+                });
+                
+                separators.forEach(el => {
+                    el.style.color = timerConfig.color;
+                });
+            }
+            
+            if (timerConfig.labelColor) {
+                timeLabels.forEach(el => {
+                    el.style.color = timerConfig.labelColor;
+                });
+            }
+            
+            // Затемнение фона
+            if (overlay && timerConfig.overlayOpacity !== undefined) {
+                overlay.style.backgroundColor = `rgba(0, 0, 0, ${timerConfig.overlayOpacity})`;
+            }
+        }
+        
+        // Загрузка видео с повторными попытками
+        function loadVideoBackground() {
+            const video = document.getElementById('video-background');
+            const fallback = document.getElementById('video-fallback');
+            
+            if (!video) return;
+            
+            let videoUrl = timerConfig.videoUrl || 'background.mp4';
+            
+            // Для локальных файлов создаем абсолютный URL
+            if (!videoUrl.startsWith('http') && !videoUrl.startsWith('blob:') && !videoUrl.startsWith('data:')) {
+                const baseUrl = window.location.href.replace(/\/[^\/]*$/, '/');
+                videoUrl = baseUrl + videoUrl;
+            }
+            
+            // Устанавливаем источник видео
+            video.src = videoUrl;
+            
+            // Событие: видео загружено
+            video.onloadeddata = function() {
+                console.log('Видео загружено:', this.videoWidth + 'x' + this.videoHeight);
+                videoRetryCount = 0;
+                
+                // Пытаемся воспроизвести
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log('Автовоспроизведение заблокировано, пробую снова...');
+                        setTimeout(() => video.play(), 1000);
+                    });
+                }
+            };
+            
+            // Событие: видео воспроизводится
+            video.onplaying = function() {
+                console.log('Видео воспроизводится');
+                fallback.style.display = 'none';
+                video.style.display = 'block';
+            };
+            
+            // Событие: ошибка загрузки видео
+            video.onerror = function() {
+                console.error('Ошибка загрузки видео:', videoUrl);
+                
+                if (videoRetryCount < MAX_VIDEO_RETRIES) {
+                    videoRetryCount++;
+                    
+                    // Пробуем запасное видео
+                    if (videoRetryCount === 1 && videoUrl.indexOf('old.mp4') === -1) {
+                        console.log('Пробую запасное видео old.mp4...');
+                        const baseUrl = window.location.href.replace(/\/[^\/]*$/, '/');
+                        video.src = baseUrl + 'old.mp4';
+                        video.load();
+                    } 
+                    // Если и запасное не загрузилось, показываем фолбэк
+                    else if (videoRetryCount >= MAX_VIDEO_RETRIES) {
+                        console.log('Показываю фолбэк фон');
+                        video.style.display = 'none';
+                        fallback.style.display = 'block';
+                    }
+                }
+            };
+            
+            // Событие: видео буферизуется
+            video.onwaiting = function() {
+                console.log('Видео буферизуется...');
+            };
+            
+            // Начинаем загрузку
+            video.load();
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Инициализация LED-таймера');
+            
+            // Загружаем настройки
+            loadConfig();
+            
+            // Загружаем видео
+            loadVideoBackground();
+            
+            // Запускаем таймер
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+            
+            // Обновляем настройки при изменении из другого окна
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'timerConfig') {
+                    console.log('Обновление настроек из другого окна');
+                    loadConfig();
+                    
+                    // Перезагружаем видео только если URL изменился
+                    const currentVideo = document.getElementById('video-background').src;
+                    const newVideoUrl = timerConfig.videoUrl || 'background.mp4';
+                    
+                    if (!currentVideo.includes(newVideoUrl)) {
+                        loadVideoBackground();
+                    }
+                }
+            });
+            
+            // Автоматическое восстановление видео каждые 30 минут
+            setInterval(function() {
+                const video = document.getElementById('video-background');
+                if (video && (video.readyState === 0 || video.error || video.paused)) {
+                    console.log('Проверка состояния видео...');
+                    if (video.paused && video.readyState >= 3) {
+                        video.play().catch(e => console.log('Не удалось возобновить видео:', e));
+                    }
+                }
+            }, 30 * 60 * 1000); // 30 минут
+            
+            // Перезагрузка страницы каждые 24 часа для стабильности (BrightSign)
+            setTimeout(function() {
+                console.log('Плановая перезагрузка (24 часа)');
+                location.reload();
+            }, 24 * 60 * 60 * 1000);
+        });
+        
+        // Предотвращаем контекстное меню
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Предотвращаем выделение текста
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Предотвращаем перетаскивание
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    </script>
+</body>
+</html>
